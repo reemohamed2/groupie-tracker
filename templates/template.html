@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Groupie Tracker</title>
+    <style>
+        body {
+            font-family: 'Times New Roman', serif;
+            background-color: #222;
+            font-size: large;
+            color: #e04d4d;
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background-color: #444;
+            padding: 15px;
+            text-align: center;
+            border-bottom: 2px solid #666;
+        }
+        p {
+            margin: 0;
+            font-size: 40px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            color: rgb(255, 255, 255);
+        }
+        .search-bar {
+            width: 50%;
+            padding: 8px;
+            margin: 20px auto;
+            display: block;
+            font-size: 16px;
+            border: 2px solid #666;
+            border-radius: 4px;
+            background-color: #333;
+            color: #fff;
+        }
+        .gallery-item .hidden {
+            display: none;
+        }
+        .gallery {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 20px;
+        }
+        .gallery-item {
+            position: relative;
+            margin: 15px;
+            border: 2px solid #666;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            transition: transform 0.3s ease-in-out;
+        }
+        .gallery-item:hover {
+            transform: scale(1.05);
+        }
+        .gallery-item img {
+            width: 200px;
+            height: 200px;
+            object-fit: cover;
+            filter: contrast(1.2) brightness(0.8);
+        }
+        .gallery-item .tooltip {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 4px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+        .gallery-item:hover .tooltip {
+            opacity: 1;
+            visibility: visible;
+        }
+        .button-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px;
+        }
+        .button {
+            padding: 8px 16px;
+            background-color: #5c5c5c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .button:hover {
+            background-color: #404040;
+        }
+        .filter-section {
+            margin: 20px auto;
+            text-align: center;
+            color: white;
+            width: 30;
+            height: 50;
+        }
+        .range-slider {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 15px auto;
+        }
+        .range-slider input {
+            width: 30%;
+        }
+        .range-value {
+            margin-left: 10px;
+            font-size: medium;
+            color: white;
+        }
+        .checkbox-filter {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 10px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgb(0, 0, 0);
+            background-color: rgba(0, 0, 0, 0.4);
+        }
+        .modal-content {
+            background-color: #444;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 40%;
+            border-radius: 5px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: white;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <p>Artists</p>
+    </header>
+    
+    <input list="suggestions" type="text" class="search-bar" id="searchBar" placeholder="Search artists...">
+    <datalist id="suggestions"></datalist>
+
+    <!-- Filter Button -->
+    <div class="button-container">
+        <button id="filterBtn" class="button">Filter</button>
+    </div>
+
+    <div class="gallery" id="gallery">
+        {{range .}}
+        <div class="gallery-item">
+            <a href="/artistInfo?name={{.A.Name}}">
+                <img src="{{.A.Image}}" alt="{{.A.Name}}">
+                <div class="item-details">
+                    <ul class="hidden">
+                        {{- $members := .A.Members -}}
+                        {{- range $index, $member := $members -}}
+                            {{- if $index -}}
+                                ***
+                            {{- end -}}
+                            <li>{{ $member }}</li>
+                        {{- end -}}
+                    </ul>
+                    <ul class="hidden">{{.A.CreationDate}}</ul>
+                    <ul class="hidden">{{.A.FirstAlbum}}</ul>
+                    <ul class="hidden">{{.L.Locations}}</ul>
+                </div>
+                <div class="tooltip">{{.A.Name}}</div>
+            </a>
+        </div>
+        {{end}}
+        <div class="button-container">
+            <a href="/" class="button">Back to Home</a>
+            <a href="/feedback" class="button">Feedback</a>
+        </div>
+    </div>
+
+    <!-- Modal for Filters -->
+    <div id="filterModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 style="color: white;">Filter Options</h2>
+
+            <!-- Creation Date Range Slider -->
+            <div class="filter-section range-slider">
+                <label for="creation-date" style="color: white;">Creation Date:</label>
+                <div class="slider-container">
+                    <input type="range" id="creation-date-start" min="1950" max="2024" value="1950" step="1" class="slider">
+                    <input type="range" id="creation-date-end" min="1950" max="2024" value="2024" step="1" class="slider">
+                </div>
+                <span id="creation-date-display">From 1950 to 2024</span>
+            </div>
+            
+            <div class="filter-section range-slider">
+                <label for="first-album-year" style="color: white;">First Album Year:</label>
+                <div class="slider-container">
+                    <input type="range" id="first-album-start" min="1950" max="2024" value="1950" step="1" class="slider">
+                    <input type="range" id="first-album-end" min="1950" max="2024" value="2024" step="1" class="slider">
+                </div>
+                <span id="first-album-display">From 1950 to 2024</span>
+            </div>
+
+            <!-- Location Filter -->
+            <div class="filter-section">
+                <label for="location-filter" style="color: white;">Location:</label>
+                <input list="location-suggestions" type="text" id="location-filter" placeholder="Enter location..." style="width: 80%; padding: 8px;">
+                <datalist id="location-suggestions">
+                </datalist>
+            </div>
+
+            <!-- Number of Members Checkboxes -->
+            <div class="filter-section checkbox-filter">
+                <label style="color: white;">Number of Members:</label>
+                <label style="color: white;">
+                    <input type="checkbox" id="select-all" checked> Select All
+                </label>
+                <div>
+                    <label style="color: white;"><input type="checkbox" class="member-filter" value="1" checked> 1</label>
+                    <label style="color: white;"><input type="checkbox" class="member-filter" value="2" checked> 2</label>
+                    <label style="color: white;"><input type="checkbox" class="member-filter" value="3" checked> 3</label>
+                    <label style="color: white;"><input type="checkbox" class="member-filter" value="4" checked> 4</label>
+                    <label style="color: white;"><input type="checkbox" class="member-filter" value="5" checked> 5</label>
+                    <label style="color: white;"><input type="checkbox" class="member-filter" value="6" checked> 6</label>
+                    <label style="color: white;"><input type="checkbox" class="member-filter" value="7" checked> 7</label>
+                    <label style="color: white;"><input type="checkbox" class="member-filter" value="8" checked> 8+</label>
+                </div>
+            </div>
+
+            <!-- Apply Filter Button -->
+            <div class="button-container">
+                <button id="applyFilterBtn" class="button" style="margin-left: 10px; background-color: blueviolet; color: white; font-size: 16px; padding: 10px 20px; border: none; border-radius: 5px;">Apply Filter</button>              
+                  <button id="resetFilterBtn" class="button" style="margin-left: 10px; background-color: red; color: white; font-size: 16px; padding: 10px 20px; border: none; border-radius: 5px;">Reset Filter</button>            </div>
+        </div>
+    </div>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let searchBar = document.getElementById('searchBar');
+        let gallery = document.getElementById('gallery');
+        let items = gallery.getElementsByClassName('gallery-item');
+        let suggestions = document.getElementById('suggestions');
+
+        function createOption(text,name) {
+    let option = document.createElement('option');
+
+    option.textContent = text; // Display the original text
+    option.value = name; // Use the modified text as the value
+    return option;
+}
+
+        searchBar.addEventListener('input', function() {
+            let filter = searchBar.value.toLowerCase();
+            suggestions.innerHTML = ''; 
+
+            for (let i = 0; i < items.length; i++) {
+                let item = items[i];
+                let tooltip = item.getElementsByClassName('tooltip')[0];
+                let hiddenLists = item.getElementsByClassName('hidden');
+                let membersList = hiddenLists[0]?.textContent.toLowerCase() || '';
+                let creationDate = hiddenLists[1]?.textContent.toLowerCase() || '';
+                let firstAlbum = hiddenLists[2]?.textContent.toLowerCase() || '';
+                let locationslist = hiddenLists[3]?.textContent.toLowerCase() || '';
+                let text = (tooltip.textContent + ' ' + membersList + ' ' + creationDate + ' ' + firstAlbum+ ' ' + locationslist).toLowerCase();
+                
+                if (filter != "") {
+                if (text.includes(filter)) {
+                    if (tooltip.textContent.toLowerCase().includes(filter)) {
+                        suggestions.appendChild(createOption(capitalizeWords(tooltip.textContent) + " - artist/band",tooltip.textContent));
+                    }
+                    if (membersList.includes(filter)) {
+                        membersList.split('***').forEach((Element) => {
+                            if (Element.includes(filter)) {
+                                console.log(Element)
+                                suggestions.appendChild(createOption(capitalizeWords(Element)+ " - member",tooltip.textContent));
+                            }
+                        })
+                    }
+                    if (creationDate.includes(filter)) {
+                        suggestions.appendChild(createOption(creationDate+ " - creation date",tooltip.textContent));
+                        
+                    }
+                    if (firstAlbum.includes(filter)) {
+                        suggestions.appendChild(createOption(firstAlbum + " - first album",tooltip.textContent));
+                    }
+                    if (locationslist.includes(filter)) {
+                        let v = locationslist.slice(2,-1)
+                        v.split(" ").forEach((Element) => {
+                            if (Element.includes(filter)) {
+                                suggestions.appendChild(createOption( Element + " - location",tooltip.textContent));
+
+                            }
+                        })
+                    }
+                }
+            }}
+        });
+
+        
+        searchBar.addEventListener('input', function() {
+            let filter = searchBar.value.toLowerCase();
+            
+            for (let i = 0; i < items.length; i++) {
+                let item = items[i];
+                let tooltip = item.getElementsByClassName('tooltip')[0];
+                let hiddenLists = item.getElementsByClassName('hidden');
+                let membersList = hiddenLists[0]?.textContent.toLowerCase() || '';
+                let creationDate = hiddenLists[1]?.textContent.toLowerCase() || '';
+                let firstAlbum = hiddenLists[2]?.textContent.toLowerCase() || '';
+                let locationslist = hiddenLists[3]?.textContent.toLowerCase() || '';
+                let text = (tooltip.textContent + ' ' + membersList + ' ' + creationDate + ' ' + firstAlbum+ ' ' + locationslist).toLowerCase();
+                
+                if (text.includes(filter)) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            }
+        });
+    });
+    function removeSubstrings(text) {
+    // Define the substrings to be removed
+    const substringsToRemove = [
+        " - artist/band",
+        " - member",
+        " - creation date",
+        " - first album",
+        " - location"
+    ];
+
+    // Create a regular expression that matches any of the substrings
+    const regex = new RegExp(substringsToRemove.join('|'), 'g');
+
+    // Replace matched substrings with an empty string
+    return text.replace(regex, '');
+}
+
+    function capitalizeWords(str) {
+    return str
+        .split(/[-_\s]+/) // Split by space, hyphen, or underscore
+        .map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() // Capitalize first letter and lowercase the rest
+        )
+        .join(' ');
+}
+
+        const fButton = document.getElementById('filterBtn');
+        const fModel = document.getElementById('filterModal');
+        const CloseModel = document.getElementsByClassName('close')[0];
+        const filterApply = document.getElementById('applyFilterBtn')
+        const locationsearchbar = document.getElementById('location-filter');
+        const locationsuggestions = document.getElementById('location-suggestions');
+        let gallery = document.getElementById('gallery');
+        let items = gallery.getElementsByClassName('gallery-item');
+        locationsearchbar.addEventListener('input', () => {
+            function createOption(value) {
+    const option = document.createElement('option');
+    option.value = value; // Set the value of the option
+    return option; // Return the created option
+}
+    let wantedloc = locationsearchbar.value.toLowerCase();
+    locationsuggestions.innerHTML = '';
+    for (let i = 0; i < items.length; i++) {
+    let item = items[i];
+    let hiddenLists = item.getElementsByClassName('hidden');
+    let locationslist = hiddenLists[3]?.textContent.toLowerCase();
+
+    if (locationslist.includes(wantedloc)) {
+        // Remove the first two and the last element from the list
+        let v = locationslist.slice(2, -1);
+        
+        // Split the string into an array of elements
+        v.split(" ").forEach((element) => {
+            // Check if the element includes the filter
+            if (element.includes(wantedloc)) {
+                locationsuggestions.appendChild(createOption(element));
+            }
+        });
+    }
+}});
+        fButton.onclick = function() {
+            fModel.style.display = "block";
+        }
+        
+        CloseModel.onclick = function() {
+            fModel.style.display = "none";
+        }
+        window.onclick = function(event) {
+            if (event.target == fModel) {
+                fModel.style.display = "none";
+            }
+        }
+        const creationStartInput = document.getElementById('creation-date-start');
+    const creationEndInput = document.getElementById('creation-date-end');
+    const creationDateDisplay = document.getElementById('creation-date-display');
+    const firstAlbumStartInput = document.getElementById('first-album-start');
+    const firstAlbumEndInput = document.getElementById('first-album-end');
+    const firstAlbumDisplay = document.getElementById('first-album-display');
+    const memberCheckboxes = document.querySelectorAll('.member-filter');
+    const applyFilterBtn = document.getElementById('applyFilterBtn');
+    function getSelectedCheckboxValues() {
+        const selectedValues = [];
+        memberCheckboxes.forEach(checkbox => {
+            if (checkbox.checked) {
+                selectedValues.push(checkbox.value);
+            }
+        });
+        return selectedValues;
+    }
+
+    applyFilterBtn.onclick = function() {
+        const creationDatestart = creationStartInput.value;
+        const creationDateend = creationEndInput.value;
+        const firstAlbumStart = firstAlbumStartInput.value;
+        const firstAlbumEnd = firstAlbumEndInput.value;
+        const selectedMembers = getSelectedCheckboxValues();
+        fModel.style.display = "none";
+
+        // Constructing an object to hold the filter data
+        const filterData = {
+            creationDatestart,
+            creationDateend,
+            firstAlbumStart,
+            firstAlbumEnd,
+            location,
+            selectedMembers
+        };
+        for (let i = 0; i < items.length; i++) {
+        let item = items[i];
+        let hiddenLists = item.getElementsByClassName('hidden');
+        let theul = hiddenLists[0];
+        let lists = theul.getElementsByTagName('li');
+        let membersnum = lists.length;
+        let creationDate = Number(hiddenLists[1]?.textContent.toLowerCase()) || '';
+
+        let firstAlbum = hiddenLists[2]?.textContent.toLowerCase() || '';
+        let dateString = firstAlbum;
+let year = Number(dateString.split("-")[2]); // Split the string and get the third element
+        let locationslist = hiddenLists[3]?.textContent.toLowerCase() || '';
+
+ if ((selectedMembers.includes(membersnum.toString())||selectedMembers==membersnum)&&locationslist.includes(locationsearchbar.value.toLowerCase())
+&&
+ creationDatestart <= creationDate && creationDate <= creationDateend &&
+firstAlbumStart <= year && year <= firstAlbumEnd)
+            {
+            item.style.display = 'block'; // Show the item
+        } else {
+            item.style.display = 'none'; // Hide the item
+        }
+    }
+    };
+
+    function updateCreationDateDisplay() {
+        creationDateDisplay.textContent = `From ${creationStartInput.value} to ${creationEndInput.value}`;
+    }
+
+    // Function to update display values for first album year
+    function updateFirstAlbumDisplay() {
+        firstAlbumDisplay.textContent = `From ${firstAlbumStartInput.value} to ${firstAlbumEndInput.value}`;
+    }
+
+    // Event listeners for creation date sliders
+    creationStartInput.addEventListener('input', function() {
+        if (parseInt(creationStartInput.value) > parseInt(creationEndInput.value)) {
+            creationEndInput.value = creationStartInput.value; // Sync end slider with start
+        }
+        updateCreationDateDisplay();
+    });
+
+    creationEndInput.addEventListener('input', function() {
+        if (parseInt(creationEndInput.value) < parseInt(creationStartInput.value)) {
+            creationStartInput.value = creationEndInput.value; // Sync start slider with end
+        }
+        updateCreationDateDisplay();
+    });
+
+    // Event listeners for first album year sliders
+    firstAlbumStartInput.addEventListener('input', function() {
+        if (parseInt(firstAlbumStartInput.value) > parseInt(firstAlbumEndInput.value)) {
+            firstAlbumEndInput.value = firstAlbumStartInput.value; // Sync end slider with start
+        }
+        updateFirstAlbumDisplay();
+    });
+
+    firstAlbumEndInput.addEventListener('input', function() {
+        if (parseInt(firstAlbumEndInput.value) < parseInt(firstAlbumStartInput.value)) {
+            firstAlbumStartInput.value = firstAlbumEndInput.value; // Sync start slider with end
+        }
+        updateFirstAlbumDisplay();
+    });
+    const selectAllCheckbox = document.getElementById('select-all');
+    selectAllCheckbox.addEventListener('change', function() {
+        memberCheckboxes.forEach(checkbox => {
+            checkbox.checked = selectAllCheckbox.checked;
+        });
+    });
+    const creationDateStart = document.getElementById('creation-date-start');
+    const creationDateEnd = document.getElementById('creation-date-end');
+    const firstAlbumStart = document.getElementById('first-album-start');
+    const firstAlbumEnd = document.getElementById('first-album-end');
+    const locationFilter = document.getElementById('location-filter');
+    const resetFilterBtn = document.getElementById('resetFilterBtn');
+    selectAllCheckbox.addEventListener('change', function() {
+        memberCheckboxes.forEach(checkbox => {
+            checkbox.checked = selectAllCheckbox.checked;
+        });
+    });
+
+    // Reset Filter functionality
+    resetFilterBtn.addEventListener('click', function() {
+        // Reset range sliders
+        creationDateStart.value = 1950;
+        creationDateEnd.value = 2024;
+        firstAlbumStart.value = 1950;
+        firstAlbumEnd.value = 2024;
+
+        // Reset location filter
+        locationFilter.value = '';
+
+        // Reset checkboxes
+        selectAllCheckbox.checked = true;
+        memberCheckboxes.forEach(checkbox => {
+            checkbox.checked = true;
+        });
+
+        // Update display for ranges
+        document.getElementById('creation-date-display').innerText = 'From 1950 to 2024';
+        document.getElementById('first-album-display').innerText = 'From 1950 to 2024';
+    });
+
+    // Initialize display values
+    updateCreationDateDisplay();
+    updateFirstAlbumDisplay();
+    </script>
+</body>
+</html>
